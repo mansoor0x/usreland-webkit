@@ -1,5 +1,5 @@
 export const logger = {
-  verbose: true, // enable for debug logs
+  verbose: true,
   init() {
     this.console = document.getElementById("console");
   },
@@ -15,17 +15,23 @@ export const logger = {
     }
   },
   log(msg) {
-    this.console.append(`${msg}\n`);
+    if (this.console) {
+      this.console.append(`${msg}\n`);
+    } else {
+      console.log(msg);
+    }
   },
 };
+
 export const version = {
   console: undefined,
   major: undefined,
   minor: undefined,
+  raw: undefined,
   init() {
     const ua = navigator.userAgent;
-
-    logger.info(`Agent: ${ua}`);
+    this.raw = ua;
+    logger.info(`Raw UA: ${ua}`);
 
     const matches = ua.match(/PlayStation\s+(\d+)\/(\d+)\.(\d+)/);
     if (matches === null) {
@@ -35,6 +41,9 @@ export const version = {
     this.console = parseInt(matches[1], 10);
     this.major = parseInt(matches[2], 10);
     this.minor = parseInt(matches[3], 16);
+    
+    logger.info(`Agent: ${ua}`);
+    logger.info(`Parsed: console=${this.console} version=${this.toString()}`);
   },
   toString() {
     return `${this.major}.${this.minor.toString(16).padStart(2, "0")}`;
