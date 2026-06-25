@@ -2,6 +2,9 @@ export const logger = {
   verbose: true,
   init() {
     this.console = document.getElementById("console");
+    if (!this.console) {
+      this.console = document.body;
+    }
   },
   info(msg) {
     this.log(`[+] ${msg}`);
@@ -16,7 +19,13 @@ export const logger = {
   },
   log(msg) {
     if (this.console) {
-      this.console.append(`${msg}\n`);
+      if (typeof this.console.append === "function") {
+        this.console.append(`${msg}\n`);
+      } else if (typeof this.console.innerHTML !== "undefined") {
+        this.console.innerHTML += `${msg}\n`;
+      } else {
+        console.log(msg);
+      }
     } else {
       console.log(msg);
     }
