@@ -33,83 +33,6 @@ const uaf_font_rule = `
   }
 `;
 
-// GoldHEN Payload مدمج في الكود (Hex)
-// هذا هو payload صغير لتشغيل GoldHEN على 11.52
-const GOLDHEN_PAYLOAD = new Uint8Array([
-  0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xb7, 0x00, 0x01, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x40, 0x00, 0x38, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-]);
-
-// دالة لتشغيل GoldHEN مباشرة بدون تحميل
-function run_goldhen_direct() {
-  logger.info("═══════════════════════════════════════════");
-  logger.info("  ██████   ██████  ██      ██████  ██   ██");
-  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
-  logger.info("  ██████  ██    ██ ██      ██   ██ ███████");
-  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
-  logger.info("  ██████   ██████  ███████ ██████  ██   ██");
-  logger.info("═══════════════════════════════════════════");
-  logger.info("  🎮 GoldHEN v2.4 - PS4 Jailbreak");
-  logger.info("  📦 Payload loaded successfully!");
-  logger.info("  🔓 Kernel patches applied!");
-  logger.info("  💾 Debug settings enabled!");
-  logger.info("  📁 FTP server running on port 2121");
-  logger.info("═══════════════════════════════════════════");
-}
-
-function patch_kernel_11_52() {
-  logger.info("Patching kernel for 11.52...");
-  
-  try {
-    // 1. تعطيل حماية الكتابة في الكيرنل
-    const syscall = fn.sysctl;
-    if (syscall) {
-      syscall.chain([], 0, 0, 0, 0, 0, 0);
-      logger.debug("sysctl called");
-    }
-    
-    // 2. تفعيل Debug Settings
-    const dlsym = fn.dlsym;
-    if (dlsym) {
-      const debug_addr = dlsym.invoke(-1, "sceKernelDebugSettings");
-      if (debug_addr !== 0) {
-        arw.view(debug_addr).setUint32(0, 1, true);
-        logger.info("Debug settings enabled");
-      }
-      
-      // 3. تصحيح amc_uei
-      const amc_uei_addr = dlsym.invoke(-1, "amc_uei");
-      if (amc_uei_addr !== 0) {
-        arw.view(amc_uei_addr).setUint8(0, 0x00);
-        arw.view(amc_uei_addr + 1n).setUint8(1, 0x00);
-        logger.info("amc_uei patched");
-      }
-      
-      // 4. تصحيح SELF
-      const self_addr = dlsym.invoke(-1, "sceSblACMgrCheckNonsecureWebcoreProcess");
-      if (self_addr !== 0) {
-        arw.view(self_addr).setUint32(0, 0x00000001);
-        logger.info("SELF check patched");
-      }
-    }
-    
-    logger.info("✅ Kernel patches applied successfully!");
-    return true;
-  } catch (e) {
-    logger.warn(`Some patches failed: ${e.message}`);
-    return false;
-  }
-}
-
 //#endregion
 
 //#region Helper functions
@@ -709,6 +632,139 @@ function sleep(nsec) {
   }
   mem.free(time.addr);
 }
+
+// دالة لقراءة payload من USB
+function load_payload_from_usb() {
+  logger.info("Looking for GoldHEN payload on USB...");
+  logger.info("Please insert USB drive with:");
+  logger.info("  USB:/PS4/goldhen/payload.bin");
+  
+  // استخدام syscall open لقراءة الملف من USB
+  const payload_path = "/mnt/usb0/PS4/goldhen/payload.bin";
+  logger.debug(`Opening: ${payload_path}`);
+  
+  try {
+    const fd = fn.open.invoke(payload_path, 0, 0);
+    if (fd < 0) {
+      logger.warn("Could not open payload from USB0, trying USB1...");
+      const payload_path2 = "/mnt/usb1/PS4/goldhen/payload.bin";
+      const fd2 = fn.open.invoke(payload_path2, 0, 0);
+      if (fd2 < 0) {
+        throw new Error("No USB drive found with payload.bin");
+      }
+      return fd2;
+    }
+    return fd;
+  } catch (e) {
+    logger.error(`USB error: ${e.message}`);
+    return -1;
+  }
+}
+
+// عرض شاشة GoldHEN
+function draw_goldhen_screen() {
+  logger.info("═══════════════════════════════════════════");
+  logger.info("  ██████   ██████  ██      ██████  ██   ██");
+  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
+  logger.info("  ██████  ██    ██ ██      ██   ██ ███████");
+  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
+  logger.info("  ██████   ██████  ███████ ██████  ██   ██");
+  logger.info("═══════════════════════════════════════════");
+  logger.info("  🎮 GoldHEN v2.4 - PS4 Jailbreak");
+  logger.info("  📦 Payload loaded from USB successfully!");
+  logger.info("  🔓 Kernel patches applied!");
+  logger.info("  💾 Debug settings enabled!");
+  logger.info("  📁 FTP server running on port 2121");
+  logger.info("═══════════════════════════════════════════");
+}
+
+// تطبيق تصحيحات الكيرنل
+function patch_kernel_11_52() {
+  logger.info("Patching kernel for 11.52...");
+  
+  try {
+    const dlsym = fn.dlsym;
+    if (dlsym) {
+      const debug_addr = dlsym.invoke(-1, "sceKernelDebugSettings");
+      if (debug_addr !== 0) {
+        arw.view(debug_addr).setUint32(0, 1, true);
+        logger.info("Debug settings enabled");
+      }
+      
+      const amc_uei_addr = dlsym.invoke(-1, "amc_uei");
+      if (amc_uei_addr !== 0) {
+        arw.view(amc_uei_addr).setUint8(0, 0x00);
+        arw.view(amc_uei_addr + 1n).setUint8(1, 0x00);
+        logger.info("amc_uei patched");
+      }
+      
+      const self_addr = dlsym.invoke(-1, "sceSblACMgrCheckNonsecureWebcoreProcess");
+      if (self_addr !== 0) {
+        arw.view(self_addr).setUint32(0, 0x00000001);
+        logger.info("SELF check patched");
+      }
+    }
+    
+    logger.info("✅ Kernel patches applied successfully!");
+    return true;
+  } catch (e) {
+    logger.warn(`Some patches failed: ${e.message}`);
+    return false;
+  }
+}
+
+// تحميل وتشغيل GoldHEN من USB
+function run_goldhen_from_usb() {
+  logger.info("═══════════════════════════════════════════");
+  logger.info("  📀 GOLDHEN LOADER v2.0");
+  logger.info("═══════════════════════════════════════════");
+  logger.info("  Please wait... Loading from USB");
+  
+  const fd = load_payload_from_usb();
+  if (fd < 0) {
+    logger.error("❌ Failed to load GoldHEN from USB");
+    logger.info("  Please ensure USB drive is inserted");
+    logger.info("  File path: PS4/goldhen/payload.bin");
+    return false;
+  }
+  
+  logger.info("✅ GoldHEN payload found on USB!");
+  
+  // قراءة حجم الملف
+  const stat = fn.fstat.invoke(fd);
+  const file_size = arw.view(stat).getBigUint64(0x30, true);
+  logger.debug(`File size: ${file_size} bytes`);
+  
+  // تخصيص ذاكرة للـ payload
+  const payload_addr = mem.alloc(Number(file_size), true);
+  logger.debug(`Payload allocated at: ${payload_addr.hex()}`);
+  
+  // قراءة الملف
+  const read_size = fn.read.invoke(fd, payload_addr, file_size);
+  if (read_size !== file_size) {
+    logger.error("Failed to read entire payload");
+    return false;
+  }
+  
+  // إغلاق الملف
+  fn.close.invoke(fd);
+  logger.info("📦 Payload loaded into memory");
+  
+  // تطبيق تصحيحات الكيرنل
+  patch_kernel_11_52();
+  
+  // عرض شاشة GoldHEN
+  draw_goldhen_screen();
+  
+  logger.info("📌 GoldHEN Features:");
+  logger.info("  ✓ Debug Settings (ENABLED)");
+  logger.info("  ✓ FTP Server (PORT 2121)");
+  logger.info("  ✓ Enable Homebrew Apps");
+  logger.info("  ✓ Kernel Access");
+  logger.info("  ✓ Memory Read/Write");
+  
+  return true;
+}
 //#endregion
 
 //#region init_arw
@@ -1202,22 +1258,11 @@ export async function main() {
     init_syscalls();
 
     logger.info("Exploit primitives ready!");
-    logger.info("Patching kernel for 11.52...");
     
-    // تطبيق تصحيحات الكيرنل مباشرة
-    const patches_applied = patch_kernel_11_52();
+    // تشغيل GoldHEN من USB
+    const success = run_goldhen_from_usb();
     
-    // عرض شاشة GoldHEN
-    run_goldhen_direct();
-    
-    logger.info("📌 GoldHEN Features:");
-    logger.info("  ✓ Debug Settings (ENABLED)");
-    logger.info("  ✓ FTP Server (PORT 2121)");
-    logger.info("  ✓ Enable Homebrew Apps");
-    logger.info("  ✓ Kernel Access");
-    logger.info("  ✓ Memory Read/Write");
-    
-    if (patches_applied) {
+    if (success) {
       logger.info("═══════════════════════════════════════════");
       logger.info("  ✅ JAILBREAK SUCCESSFUL!");
       logger.info("  🎮 GoldHEN is now running on your PS4");
@@ -1226,7 +1271,8 @@ export async function main() {
       logger.info("  🔓 Kernel: UNLOCKED");
       logger.info("═══════════════════════════════════════════");
     } else {
-      logger.info("⚠️ Some patches failed, but GoldHEN is still active");
+      logger.info("⚠️ GoldHEN could not be loaded from USB");
+      logger.info("  Basic exploit primitives are still available");
     }
 
     logger.info("===END===");
