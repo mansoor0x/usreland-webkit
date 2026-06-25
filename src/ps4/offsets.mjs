@@ -1194,6 +1194,53 @@ class V1304 extends Offsets {
   get c_strerror() { return 0x397f0n; }
 }
 
+class V1350 extends Offsets {
+  static get version() { return "13.00"; }
+  get wk_CSSFontFace_sizeof() { return 0xd0; }
+  get wk_CSSFontFace_m_families() { return 0x28; }
+  get wk_CSSFontFace_m_featureSettings_m_buffer() { return 0x40; }
+  get wk_CSSFontFace_m_featureSettings_m_size() { return 0x48; }
+  get wk_CSSFontFace_m_featureSettings_m_capacity() { return 0x4c; }
+  get wk_CSSFontFace_m_clients() { return 0x78; }
+  get wk_CSSFontFace_m_wrapper() { return 0x80; }
+  get wk_CSSFontFace_m_status() { return 0x98; }
+  get wk_CSSFontFace_m_thread() { return 0xc0; }
+  get wk_RET() { return 0x2c30769n; }
+  get wk_LEAVE_RET() { return 0x223a168n; }
+  get wk_POP_R8_RET() { return 0x1e562f8n; }
+  get wk_POP_R9_RET() { return 0x12d7b96n; }
+  get wk_POP_R10_RET() { return 0x128abffn; }
+  get wk_POP_R11_RET() { return 0x1c63581n; }
+  get wk_POP_R12_RET() { return 0x17f39e1n; }
+  get wk_POP_R13_RET() { return 0x205adebn; }
+  get wk_POP_R14_RET() { return 0x2135ec1n; }
+  get wk_POP_R15_RET() { return 0x1c54b31n; }
+  get wk_POP_RAX_RET() { return 0x1e97954n; }
+  get wk_POP_RBP_RET() { return 0x6b6e6en; }
+  get wk_POP_RBX_RET() { return 0x506758n; }
+  get wk_POP_RCX_RET() { return 0x2c39fcdn; }
+  get wk_POP_RDI_RET() { return 0x13f9c15n; }
+  get wk_POP_RDX_RET() { return 0x158683bn; }
+  get wk_POP_RSI_RET() { return 0x2c20851n; }
+  get wk_POP_RSP_RET() { return 0x6b6d81n; }
+  get wk_MOV_RAX_RCX_RET() { return 0x2038fa0n; }
+  get wk_MOV_QWORD_PTR_RDI_RAX_RET() { return 0x1ee1f1bn; }
+  get wk_MOV_RAX_QWORD_PTR_RDI_RET() { return 0x16ea6f0n; }
+  get wk_PUSH_RAX_POP_RBP_RET() { return 0x1705cccn; }
+  get wk_PUSH_RAX_PUSH_RBP_RET() { return 0x29fed40n; }
+  get wk_PUSH_RBP_POP_RAX_RET() { return 0xb6b5d5n; }
+  get wk_POP_RAX_MOV_RAX_QWORD_PTR_RDI_JMP_QWORD_PTR_RAX_8() { return 0x146a842n; }
+  get wk_PUSH_RBP_MOV_RBP_RSP_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_20() { return 0x144d420n; }
+  get wk_MOV_RSI_QWORD_PTR_RAX_10_CALL_QWORD_PTR_RAX_18() { return 0x1f3d7e0n; }
+  get wk_PUSH_RSI_JMP_QWORD_PTR_RAX() { return 0x297c0e2n; }
+  get wk_MOV_RDI_RSI_30_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_38() { return 0xf63be4n; }
+  get wk_expm1_builtin() { return 0x1d53560n; }
+  get wk___imp___error() { return 0x2f7a4d0; }
+  get wk___imp_strerror() { return 0x2f7a520; }
+  get k__error() { return 0xce80n; }
+  get c_strerror() { return 0x397f0n; }
+}
+
 class V1352 extends Offsets {
   static get version() { return "13.52"; }
   get wk_CSSFontFace_sizeof() { return 0xd0; }
@@ -1249,5 +1296,5 @@ Offsets.types = [
   V1000, V1001, V1050, V1051,
   V1100, V1101, V1150, V1152,
   V1200, V1202,
-  V1300, v1302, v1304, v1350, V1352
+  V1300, V1302, V1304, V1350, V1352
 ];
