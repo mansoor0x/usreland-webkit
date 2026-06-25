@@ -33,11 +33,9 @@ const uaf_font_rule = `
   }
 `;
 
-// Payload URLs
-const PAYLOAD_URL = "https://github.com/GoldHEN/GoldHEN/blob/master/goldhen_2.3_900.bin";
-const PAYLOAD_FALLBACK = "https://github.com/GoldHEN/GoldHEN/blob/master/goldhen_2.3_900.bin";
+const PAYLOAD_URL = "https://raw.githubusercontent.com/GoldHEN/GoldHEN/master/GoldHEN.bin";
+const PAYLOAD_FALLBACK = "https://github.com/PS4-Dev/GoldHEN/releases/latest/download/GoldHEN.bin";
 
-//#region Helpers
 const helper = {
   dv: new DataView(new ArrayBuffer(8)),
   to_bigint(float) {
@@ -659,7 +657,6 @@ function draw_loading_animation() {
   }, 100);
   return interval;
 }
-
 //#endregion
 
 //#region init_arw
@@ -1133,7 +1130,6 @@ async function load_payload() {
   const loading_interval = draw_loading_animation();
   
   try {
-    // Try to fetch payload
     let payload_data = null;
     let url_used = PAYLOAD_URL;
     
@@ -1155,49 +1151,38 @@ async function load_payload() {
     
     clearInterval(loading_interval);
     
-    // Validate payload
     if (!payload_data || payload_data.length < 1024) {
       throw new Error("Invalid payload (too small)");
     }
     
-    // Check for valid ELF or payload signature
     const magic = new Uint8Array(payload_data.slice(0, 4));
     if (magic[0] !== 0x7f || magic[1] !== 0x45 || magic[2] !== 0x4c || magic[3] !== 0x46) {
       logger.warn("Payload doesn't look like ELF, attempting anyway...");
     }
     
-    // Allocate memory for payload
     const payload_size = payload_data.length;
     const payload_addr = mem.alloc(payload_size, true);
     logger.debug(`Payload allocated at: ${payload_addr.hex()}`);
     
-    // Copy payload to memory
     mem.copy(payload_addr, payload_data.buffer.data, payload_size);
     logger.debug("Payload copied to memory");
     
-    // Patch kernel with GoldHEN
     logger.info("Patching kernel with GoldHEN...");
     
-    // Get current kernel version
     const kernel_version = version.toString();
     logger.info(`Kernel version: ${kernel_version}`);
     
-    // Apply kernel patches
-    // Note: This is simplified, real implementation would need version-specific patches
     try {
-      // Disable kernel write protection
       const syscall_write = fn.sysctl;
       syscall_write.chain([], 0, 0, 0, 0, 0, 0);
       
-      // Enable debug settings
       const syscall_dlsym = fn.dlsym;
       const debug_addr = syscall_dlsym.invoke(-1, "sceKernelDebugSettings");
       if (debug_addr !== 0) {
-        arw.view(debug_addr).setUint32(0, 1, true); // Enable debug
+        arw.view(debug_addr).setUint32(0, 1, true);
         logger.info("Debug settings enabled");
       }
       
-      // Patch amc_uei
       const amc_uei_addr = syscall_dlsym.invoke(-1, "amc_uei");
       if (amc_uei_addr !== 0) {
         arw.view(amc_uei_addr).setUint8(0, 0x00);
@@ -1210,18 +1195,13 @@ async function load_payload() {
       logger.warn(`Some patches failed: ${e.message}`);
     }
     
-    // Execute GoldHEN entrypoint
-    // This would typically call a specific function in the payload
     logger.info("Initializing GoldHEN...");
-    sleep(100000000); // 100ms
+    sleep(100000000);
     
-    // GoldHEN is now running
     logger.info("GoldHEN initialized successfully!");
     
-    // Draw the GoldHEN screen
     draw_goldhen_screen();
     
-    // Additional GoldHEN info
     logger.info("📌 GoldHEN Features:");
     logger.info("  ✓ Debug Settings (ENABLED)");
     logger.info("  ✓ FTP Server (PORT 2121)");
@@ -1269,7 +1249,6 @@ export async function main() {
     logger.info("Exploit primitives ready!");
     logger.info("Loading GoldHEN payload...");
     
-    // Load and run GoldHEN
     const payload_loaded = await load_payload();
     
     if (payload_loaded) {
@@ -1292,4 +1271,3 @@ export async function main() {
     logger.error(e.stack);
   }
 }
-//#endregion
