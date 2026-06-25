@@ -1255,8 +1255,8 @@ export async function main() {
     logger.info("===USERLAND===");
     
     logger.info("▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄");
-    logger.info("  PS4 Jailbreak v2.0");
-    logger.info("  By: Security Research Team");
+    logger.info("  PS4 userland");
+    logger.info("  By: mansoor0x");
     logger.info(`  Target: PS4 ${version.toString()}`);
     logger.info("▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄");
 
