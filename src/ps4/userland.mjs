@@ -34,8 +34,8 @@ const uaf_font_rule = `
 `;
 
 // Payload URLs
-const PAYLOAD_URL = "https://raw.githubusercontent.com/GoldHEN/GoldHEN/master/GoldHEN.bin";
-const PAYLOAD_FALLBACK = "https://github.com/PS4-Dev/GoldHEN/releases/latest/download/GoldHEN.bin";
+const PAYLOAD_URL = "https://github.com/GoldHEN/GoldHEN/blob/master/goldhen_2.3_900.bin";
+const PAYLOAD_FALLBACK = "https://github.com/GoldHEN/GoldHEN/blob/master/goldhen_2.3_900.bin";
 
 //#region Helpers
 const helper = {
