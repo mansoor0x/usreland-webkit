@@ -1,9 +1,41 @@
 <!doctype html>
 <html>
   <head>
-    <script type="module" src="src/main.js"></script>
+    <meta charset="utf-8">
+    <title>PS4 Exploit</title>
+    <style>
+      body {
+        background: #000;
+        color: #fff;
+        font-family: monospace;
+        padding: 10px;
+        margin: 0;
+      }
+      #console {
+        background: #111;
+        padding: 10px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        min-height: 300px;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-size: 13px;
+        line-height: 1.5;
+        border: 1px solid #333;
+      }
+      #console::-webkit-scrollbar {
+        width: 8px;
+      }
+      #console::-webkit-scrollbar-track {
+        background: #111;
+      }
+      #console::-webkit-scrollbar-thumb {
+        background: #555;
+      }
+    </style>
   </head>
   <body>
     <pre id="console"></pre>
+    <script type="module" src="src/main.js"></script>
   </body>
 </html>
